@@ -22,6 +22,7 @@
 #include <memory.h>
 #include <sys/wait.h>
 
+//화면 출력용 전처리기
 #define _LP_DEBUG
 #define _PUD_DEBUG
 #define _PGD_DEBUG
@@ -30,16 +31,12 @@
 #define _DD_DEBUG
 #define _MD_DEBUG
 
-#define MAX_PROCESS			2048
-#define MAXINTERFACECOUNT	20
-#define INET_ADDRSTRLEN		16
+#define MAX_PROCESS		2048
 #define BUFSIZE			1024	
-#define SQLMAXCOUNT			50
-#define SQLMAXLENGTH		4096
-#define MAXPENDING			100		// 연결요청을 대기할 수 있는 최대수
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//실행되는 프로세스의 정보를 담는 구조체
 typedef struct _ProcessInfo
 {
 	pid_t pid;
@@ -50,13 +47,14 @@ typedef struct _ProcessInfo
 	int used;
 }ProcessInfo; 
 
+//클라이언트-서버 간 프로토콜, 시스템에 접속하는 사용자 아이디
 typedef struct _HEADER
 {
 	unsigned char	TYPE;
 	unsigned int	OID;
 }HEADER;
 
-
+//회원가입 시 입력하는 사용자 정보 
 typedef struct _REGISTER1
 {
 	char	ID[45];
@@ -64,6 +62,7 @@ typedef struct _REGISTER1
 	char	PHONE[45];
 }REG_USER;
 
+//맛집 정보 등록할 때 쓸 구조체
 typedef struct _REGISTER2
 {
 	char	CATEGORY[45];
@@ -75,6 +74,7 @@ typedef struct _REGISTER2
 	char	CMNT[256];
 }REG_DATA;
 
+//분류별 키워드 리스트를 뽑을 때 사용
 typedef struct _SELECTITEM
 {
 	unsigned int GID;

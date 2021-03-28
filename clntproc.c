@@ -5,7 +5,6 @@
 #include "smnmsd.h"
 #include <string.h>
 
-
 char message[1024];
 char sqlstr[1024];
 
@@ -21,6 +20,7 @@ int ParsingDataHeader(char* rcv, HEADER* header)
 	return 5;
 }
 
+//header.TYPE == 1
 // 사용자 식별 - 사용자 ID와 그 길이를 받아서 파싱
 void ParsingID(char* rcv, char* IDname)
 {
@@ -33,7 +33,7 @@ void ParsingID(char* rcv, char* IDname)
 	printf("IDNAME(len) : %s(%d)\n", IDname, len);	//데이터가 잘 도착했는지 찍어보자
 }
 
-
+//header.TYPE == 1
 //Client에서 넘어온 ID가 db에 존재하면 로그인 성공 | 존재하지 않으면 회원가입 요구
 int loginProc(char* IDname) {
 
@@ -41,7 +41,7 @@ int loginProc(char* IDname) {
 	mysql_init(&mysql);		//mysql 초기화
 	
 
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -80,6 +80,7 @@ int loginProc(char* IDname) {
 	return ret;
 }
 
+//header.TYPE == 2
 //회원가입에 쓸 데이터를 파싱 - ID, 이름, 번호
 void ParsingUserData(char* rcv, REG_USER* userdata)
 {
@@ -111,14 +112,14 @@ void ParsingUserData(char* rcv, REG_USER* userdata)
 #endif
 }
 
-
+//header.TYPE == 2
 //사용자 회원가입
 int InsertUserData(REG_USER* data)
 {
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -165,6 +166,7 @@ int InsertUserData(REG_USER* data)
 	return ret;
 }
 
+//header.TYPE == 3
 //맛집 등록 정보 파싱 - 분류, 식당이름, 메뉴이름, 가격, 별점, 타인에게 공개여부, 후기
 void ParsingGourmetData(char* rcv, REG_DATA* data){
 	short len;
@@ -209,12 +211,13 @@ void ParsingGourmetData(char* rcv, REG_DATA* data){
 #endif
 }
 
+//header.TYPE == 3
 //맛집 정보 db에 insert
 int InsertGourmetData(unsigned int OID, REG_DATA* data){
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -237,6 +240,7 @@ int InsertGourmetData(unsigned int OID, REG_DATA* data){
 	return 1;
 }
 
+//header.TYPE == 4
 //데이터 분류별 목록 조회할 때 쓸 분류명을 파싱(Korean, Western...)
 void ParsingCategory(char* rcv, char* category)
 {
@@ -247,14 +251,14 @@ void ParsingCategory(char* rcv, char* category)
 	category[len]='\0';
 }
 
-
+//header.TYPE == 4
 //앱 화면에서 분류(Korean, Western...)를 클릭하면 해당 분류의 맛집 정보들을 조회해서 client에게 전송
 int SelectCategory(int clientSock, char* category)
 {
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -355,13 +359,14 @@ int SelectCategory(int clientSock, char* category)
 	return 1;
 }
 
+//header.TYPE == 5
 //카테고리에서 봤던 데이터로는 모자라 -> 상세 데이터 더 가져와 - 맛집정보카드를 통째로 가져오자
 int SelectDataCard(int clientSock, int gid)
 {
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -473,13 +478,14 @@ int SelectDataCard(int clientSock, int gid)
 	return 1;
 }
 
+//header.TYPE == 6
 //맛집 정보를 삭제
 int DeleteDataCard(int clientSock, int gid)
 {
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if (!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -500,13 +506,14 @@ int DeleteDataCard(int clientSock, int gid)
 	return 1;
 }
 
+//header.TYPE == 7
 //맛집 정보 수정
 int ModifyDataCard(int clientSock, int gid, REG_DATA* data)
 {
 	MYSQL mysql;
 	mysql_init(&mysql);
 	
-	if(!mysql_real_connect(&mysql, "164.125.121.186", "scott", "tiger", "Nachelin", 0, NULL, 0))
+	if (!mysql_real_connect(&mysql, gs_mysql_ipaddr, gs_mysql_user, gs_mysql_pw, gs_mysql_db, 0, NULL, 0))
 	{
 		sprintf(message, "Failed to connect to database: Error[%s]", mysql_error(&mysql));
 		return -1;
@@ -524,7 +531,7 @@ int ModifyDataCard(int clientSock, int gid, REG_DATA* data)
 	}
 	return 1;
 }
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 void TCPClientProcess(int clientSock)
 {
@@ -545,9 +552,8 @@ void TCPClientProcess(int clientSock)
 	HEADER header;	
 	REG_USER userdata;
 	int oid;
-	char sqlArray[SQLMAXCOUNT][SQLMAXLENGTH];
 
-	// Header (5 byte)
+	// Header (5 byte)s
 	int headerlen = ParsingDataHeader(buffer, &header);
 
 
@@ -635,7 +641,7 @@ void TCPClientProcess(int clientSock)
 		}
 
 	}
-	else if(header.TYPE == 4)
+	else if(header.TYPE == 4)	//select category -> show brief information
 	{
 		char category[45];
 		ParsingCategory(buffer+headerlen, category);
@@ -650,7 +656,7 @@ void TCPClientProcess(int clientSock)
 			send(clientSock, buffer, 2+4+len, 0);					
 		}
 	}
-	else if(header.TYPE==5)
+	else if(header.TYPE==5)		//select datacard -> show all information
 	{	
 		int gid;
 		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
@@ -665,7 +671,7 @@ void TCPClientProcess(int clientSock)
 			send(clientSock, buffer, 2+4+len, 0);					
 		}
 	}
-	else if(header.TYPE==6)
+	else if(header.TYPE==6)		//delete gourmet datacard
 	{
 		int gid;
 		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
@@ -688,7 +694,7 @@ void TCPClientProcess(int clientSock)
 			send(clientSock, buffer, 2+4+len, 0);
 		}	
 	}
-	else if(header.TYPE=7)
+	else if(header.TYPE=7)		//Modify gourmet data
 	{
 		int gid;
 		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
@@ -717,4 +723,3 @@ void TCPClientProcess(int clientSock)
 	}
 	close(clientSock);
 }
-
