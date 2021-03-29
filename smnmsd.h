@@ -83,6 +83,7 @@ typedef struct _SELECTITEM
 	unsigned short	RATE;
 }SELECT_ITEM;
 
+
 extern char gs_mysql_ipaddr[32];
 extern char gs_mysql_db[32];
 extern char gs_mysql_user[32];

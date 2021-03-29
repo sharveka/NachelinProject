@@ -2,6 +2,7 @@
 //
 
 #include "mysql.h"
+#include "sys/stat.h"
 #include "smnmsd.h"
 #include <string.h>
 
@@ -532,14 +533,75 @@ int ModifyDataCard(int clientSock, int gid, REG_DATA* data)
 	return 1;
 }
 
+int RegisterPhoto(int clientSock, HEADER header)
+{
+	int gid;
+	short pcnt,cmntlen;
+	char ptype;
+	int plen;
+	int rlen, tlen;
+	char path[512];
+	int newBufsize=BUFSIZE*100;
+	char buffer[newBufsize];
+	recv(clientSock, &gid, 4, 0);	gid=ntohl(gid);
+	recv(clientSock, &pcnt, 2, 0);  pcnt=ntohs(pcnt);
+	
+	sprintf(path, "./photo/%d", header.OID);
+	
+	mkdir("./photo", 0755);
+	mkdir(path, 0755);
+	
+	for(int i=0;i<pcnt;i++)
+	{	
+		tlen = 0;
+printf("1\n");
+		recv(clientSock, &plen, 4, 0);	plen=ntohl(plen);
+printf("2\n");
+		recv(clientSock, &ptype, 1, 0);	
+		char fname[1024];
+printf("3\n");
+		if(ptype==1)	sprintf(fname, "./%s/%d-%d.PNG", path, gid, i+1);
+		else		sprintf(fname, "./%s/%d-%d.JPG", path, gid, i+1);
+printf("4\n");
+				
+		FILE *fp=fopen(fname, "wb");
+		while(1){
+printf("5-1\n");
+			rlen=recv(clientSock, buffer, newBufsize, 0);
+			tlen += rlen;
+printf("5-2\n");
+			fwrite(buffer, rlen, 1, fp);
+
+printf("5-3\n");
+			if(plen<=tlen)	break;			
+		}
+		fclose(fp);
+		//comment
+printf("6\n");
+		recv(clientSock, &cmntlen, 2, 0);
+printf("7-1(%d)\n", cmntlen);
+		cmntlen = ntohs(cmntlen);
+printf("7-2(%d)\n", cmntlen);
+		if (0 < cmntlen)
+			recv(clientSock, buffer, cmntlen, 0);	
+printf("8\n");
+	}
+printf("END\n");
+	return 1;
+}
+
 
 void TCPClientProcess(int clientSock)
 {
 	int numBytesRcvd, totnumBytesRcvd = 0;
 	char buffer[BUFSIZE];
-
+	HEADER header;	
 	//(socket descriptor, void*buff(수신할 버퍼의 포인터), size_t len(버퍼의 byte단위 길이), int flags)
-	numBytesRcvd = recv(clientSock, buffer, BUFSIZE, 0);	//실제 수신한 바이트 수를 반환
+	numBytesRcvd = recv(clientSock, &header.TYPE, 1, 0);	//실제 수신한 바이트 수를 반환
+	numBytesRcvd = recv(clientSock, &header.OID, 4, 0);
+	header.OID=ntohl(header.OID);
+	
+printf("type : %d, OID : %d\n",header.TYPE ,header.OID);
 	if (numBytesRcvd < 0)	//실패하면 -1 반환
 	{
 		printf("fail to receive!\n");
@@ -549,19 +611,20 @@ void TCPClientProcess(int clientSock)
 
 	// Parsing -> Gen SQL -> InsertDB
 	// Header Parsing
-	HEADER header;	
 	REG_USER userdata;
 	int oid;
 
-	// Header (5 byte)s
-	int headerlen = ParsingDataHeader(buffer, &header);
+	// Header (5 byte)
+	//int headerlen = ParsingDataHeader(buffer, &header);
 
 
 	// Body
 	if (header.TYPE == 1)	//login
 	{
 		char IDname[45];
-		ParsingID(buffer + headerlen, IDname);
+		recv(clientSock, buffer, BUFSIZE, 0);
+
+		ParsingID(buffer, IDname);
 
 		oid = loginProc(IDname);
 		if (0 <= oid)
@@ -592,7 +655,8 @@ void TCPClientProcess(int clientSock)
 	else if (header.TYPE == 2)	//register user
 	{
 		//REG_USER userdata;
-		ParsingUserData(buffer + headerlen, &userdata);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		ParsingUserData(buffer, &userdata);
 		oid=InsertUserData(&userdata);
 		if (0 <= oid)
 		{
@@ -620,8 +684,10 @@ void TCPClientProcess(int clientSock)
 	}
 	else if (header.TYPE == 3)	//register gourmet data
 	{
+printf("2\n");
 		REG_DATA data;
-		ParsingGourmetData(buffer+headerlen, &data);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		ParsingGourmetData(buffer, &data);
 		int ret = InsertGourmetData(header.OID, &data);
 		if (ret > 0)
 		{
@@ -644,7 +710,8 @@ void TCPClientProcess(int clientSock)
 	else if(header.TYPE == 4)	//select category -> show brief information
 	{
 		char category[45];
-		ParsingCategory(buffer+headerlen, category);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		ParsingCategory(buffer, category);
 		if(SelectCategory(clientSock, category) <0)
 		{
 			buffer[0] = 0x12;
@@ -659,7 +726,8 @@ void TCPClientProcess(int clientSock)
 	else if(header.TYPE==5)		//select datacard -> show all information
 	{	
 		int gid;
-		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		memcpy(&gid, buffer, 4);	gid = ntohl(gid);
 		if(SelectDataCard(clientSock, gid) <0)
 		{
 			buffer[0] = 0x13;
@@ -674,7 +742,8 @@ void TCPClientProcess(int clientSock)
 	else if(header.TYPE==6)		//delete gourmet datacard
 	{
 		int gid;
-		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		memcpy(&gid, buffer, 4);	gid = ntohl(gid);
 		int ret=DeleteDataCard(clientSock, gid);
 		if (ret > 0)
 		{
@@ -694,13 +763,14 @@ void TCPClientProcess(int clientSock)
 			send(clientSock, buffer, 2+4+len, 0);
 		}	
 	}
-	else if(header.TYPE=7)		//Modify gourmet data
+	else if(header.TYPE==7)		//Modify gourmet data
 	{
 		int gid;
-		memcpy(&gid, buffer+headerlen, 4);	gid = ntohl(gid);
+		recv(clientSock, buffer, BUFSIZE, 0);
+		memcpy(&gid, buffer, 4);	gid = ntohl(gid);
 
 		REG_DATA data;
-		ParsingGourmetData(buffer+headerlen+4, &data);
+		ParsingGourmetData(buffer+4, &data);
 
 		int ret = ModifyDataCard(clientSock, gid, &data);
 		if (ret > 0)
@@ -712,6 +782,29 @@ void TCPClientProcess(int clientSock)
 		else
 		{
 			buffer[0] = 0x15;
+			buffer[1] = 'F';
+			int len = strlen(message);
+			int nlen = htonl(len);
+			
+			memcpy(buffer+2, (char*)&nlen, sizeof(int));
+			memcpy(buffer+6, message, len);
+			send(clientSock, buffer, 2+4+len, 0);
+		}
+	}
+	else if(header.TYPE==8)		//register photo
+	{
+		printf("1\n");
+		int ret = RegisterPhoto(clientSock, header);
+		
+		if (ret > 0)
+		{
+			buffer[0] = 0x16;
+			buffer[1] = 'T';
+			send(clientSock, buffer, 2, 0);
+		}		
+		else
+		{
+			buffer[0] = 0x16;
 			buffer[1] = 'F';
 			int len = strlen(message);
 			int nlen = htonl(len);

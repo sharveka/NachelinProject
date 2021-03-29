@@ -280,7 +280,7 @@ void job_process(int dsock, int lock_fd, int pronum)
 		if(datafd < 0)	//accept 가 성공하면 > 0 | 실패하면 -1
 		{
 			// 사용자 socket이 뭔가 잘못 되었다.
-			sprintf(gs_comment, "Socket accpet error...[%d]", errno);
+			sprintf(gs_comment, "Socket accept error...[%d]", errno);
 			Logging(gs_comment, 1);
 			close(datafd);
 			continue;
